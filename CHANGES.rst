@@ -7,6 +7,8 @@ Changelog
 
 - Removed ``setup.py``.
 
+- Added year parameter to prevent leap year parsing failures. Updated
+  tests.
 
 0.4 (2021-04-04)
 ----------------

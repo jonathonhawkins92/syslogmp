@@ -132,6 +132,7 @@ def test_parse_erroneous_message(data):
         (2012),
         (2016),
         (2020),
+        (2024),
     ],
 )
 def test_parse_leap_day_in_leap_year(current_year):
@@ -141,6 +142,24 @@ def test_parse_leap_day_in_leap_year(current_year):
 
     with freeze_time(fake_date):
         actual = parse(data)
+
+        assert actual.timestamp == expected_timestamp
+
+
+@pytest.mark.parametrize(
+    'current_year',
+    [
+        (2012),
+        (2016),
+        (2020),
+        (2024),
+    ],
+)
+def test_parse_leap_day_in_leap_year_with_year_arg(current_year):
+    data = b'<165>Feb 29 19:56:43 localhost foobar'
+    expected_timestamp = datetime(current_year, 2, 29, 19, 56, 43)
+
+    actual = parse(data, current_year)
 
     assert actual.timestamp == expected_timestamp
 
@@ -152,6 +171,7 @@ def test_parse_leap_day_in_leap_year(current_year):
         (2015),
         (2017),
         (2018),
+        (2025),
     ],
 )
 def test_parse_leap_day_in_non_leap_year(current_year):
@@ -161,3 +181,20 @@ def test_parse_leap_day_in_non_leap_year(current_year):
     with pytest.raises(MessageFormatError):
         with freeze_time(fake_date):
             parse(data)
+
+
+@pytest.mark.parametrize(
+    'current_year',
+    [
+        (1900),
+        (2015),
+        (2017),
+        (2018),
+        (2025),
+    ],
+)
+def test_parse_leap_day_in_non_leap_year_with_year_arg(current_year):
+    data = b'<165>Feb 29 19:56:43 localhost foobar'
+
+    with pytest.raises(MessageFormatError):
+        parse(data, current_year)

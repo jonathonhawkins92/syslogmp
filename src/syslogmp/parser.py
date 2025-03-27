@@ -27,7 +27,7 @@ latter.
 from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Tuple
+from typing import Optional, Tuple
 
 from .facility import Facility
 from .message import Message
@@ -37,10 +37,27 @@ from .stream import Stream
 
 MAX_MESSAGE_LENGTH: int = 1024
 
+def parse(data: bytes, year: Optional[int] = None) -> Message:
+    """
+    Parse a syslog message.
 
-def parse(data: bytes) -> Message:
-    """Parse a syslog message."""
-    parser = _Parser(data)
+    Args:
+        data: Raw syslog message as bytes
+        year: Year to use for timestamp parsing (defaults to current year)
+                to work around `datetime.strptime` failing on February 29th
+                if no year is given ("ValueError: day is out of range for month")
+                in which case the (non-leap) year 1900 would be used.
+
+    Returns:
+        A Message object containing parsed syslog message components
+
+    Raises:
+        MessageFormatError: If the syslog message cannot be parsed correctly
+    """
+    if year is None:
+        year = datetime.today().year
+
+    parser = _Parser(data, year)
 
     priority_value = parser._parse_pri_part()
     timestamp, hostname = parser._parse_header_part()
@@ -58,7 +75,7 @@ def parse(data: bytes) -> Message:
 class _Parser:
     """Parse a syslog message."""
 
-    def __init__(self, data: bytes) -> None:
+    def __init__(self, data: bytes, year: int) -> None:
         ensure(isinstance(data, bytes), 'Data must be a byte string.')
 
         ensure(
@@ -67,6 +84,7 @@ class _Parser:
         )
 
         self.stream = Stream(data)
+        self.year = year
 
     def _parse_pri_part(self) -> PriorityValue:
         """Extract facility and severity from the PRI part."""
@@ -92,12 +110,7 @@ class _Parser:
         timestamp_bytes = self.stream.read(15)
         timestamp_ascii = timestamp_bytes.decode('ascii')
 
-        # Explicitly specify the current year to work around
-        # `datetime.strptime` failing on February 29th if no year is
-        # given ("ValueError: day is out of range for month") in which
-        # case the (non-leap) year 1900 would be used.
-        current_year = datetime.today().year
-        timestamp_ascii_with_year = f'{current_year:d} {timestamp_ascii}'
+        timestamp_ascii_with_year = f"{self.year:d} {timestamp_ascii}"
 
         try:
             timestamp = datetime.strptime(
